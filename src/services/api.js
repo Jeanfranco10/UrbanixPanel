@@ -285,6 +285,36 @@ export async function fetchDashboardMetrics() {
   const casosActivos = casos
     .filter(c => ['pendiente', 'en_revision', 'en_proceso'].includes(c.estado))
 
+  // Calcular cambios mes actual vs mes anterior
+  const ahora = new Date()
+  const inicioMesActual = new Date(ahora.getFullYear(), ahora.getMonth(), 1)
+  const inicioMesAnterior = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1)
+
+  const incMesActual = incidencias.filter(i => new Date(i.creadoEn) >= inicioMesActual)
+  const incMesAnterior = incidencias.filter(i => {
+    const fecha = new Date(i.creadoEn)
+    return fecha >= inicioMesAnterior && fecha < inicioMesActual
+  })
+
+  function calcCambio(actual, anterior) {
+    if (anterior === 0) return actual > 0 ? 100 : 0
+    return Math.round(((actual - anterior) / anterior) * 100)
+  }
+
+  const cambioTotal = calcCambio(incMesActual.length, incMesAnterior.length)
+  const cambioPendiente = calcCambio(
+    incMesActual.filter(i => i.estado === 'pendiente').length,
+    incMesAnterior.filter(i => i.estado === 'pendiente').length
+  )
+  const cambioEnProceso = calcCambio(
+    incMesActual.filter(i => i.estado === 'en_proceso').length,
+    incMesAnterior.filter(i => i.estado === 'en_proceso').length
+  )
+  const cambioResuelto = calcCambio(
+    incMesActual.filter(i => i.estado === 'resuelto').length,
+    incMesAnterior.filter(i => i.estado === 'resuelto').length
+  )
+
   return {
     total,
     porEstado,
@@ -293,6 +323,10 @@ export async function fetchDashboardMetrics() {
     porArea,
     ultimas,
     casosActivos,
+    cambioTotal,
+    cambioPendiente,
+    cambioEnProceso,
+    cambioResuelto
   }
 }
 

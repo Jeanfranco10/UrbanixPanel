@@ -42,8 +42,10 @@ export async function apiFetch(endpoint, options = {}) {
       )
     }
 
-    // Parsear JSON de la respuesta
-    return await response.json()
+    // Verificar si hay contenido antes de parsear JSON
+    const text = await response.text()
+    if (!text) return null
+    return JSON.parse(text)
   } catch (error) {
     // Re-lanzar errores de red con mensaje más claro
     if (error.name === 'TypeError' && error.message.includes('fetch')) {

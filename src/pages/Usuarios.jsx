@@ -1,36 +1,32 @@
 /**
  * Usuarios.jsx — Gestión de Usuarios
- *
- * Funcionalidades:
- * - Lista de usuarios con búsqueda por nombre/correo
- * - Crear y editar usuario mediante modal (selects para área y rol)
- * - Eliminar usuario con confirmación
- * - Activar / Desactivar usuario (toggle)
+ * CRUD completo: listar, crear, editar, eliminar y buscar por nombre
  */
 
 import { useState, useEffect, useMemo } from 'react'
-import {
-    Plus,
-    Pencil,
-    Trash2,
-    ToggleLeft,
-    ToggleRight,
-    Search,
-    XCircle,
-} from 'lucide-react'
+import { Plus, Pencil, Trash2, Users, Search, ToggleLeft, ToggleRight } from 'lucide-react'
 import { apiFetch } from '../services/apiConfig'
 import Modal from '../components/ui/Modal'
 
-// Valores del enum RolUsuario
-const ROLES = ['ciudadano', 'inspector', 'responsable_area', 'administrador']
+const ROL_LABELS = {
+    ciudadano: 'Ciudadano',
+    inspector: 'Inspector',
+    responsable_area: 'Responsable de Área',
+    administrador: 'Administrador',
+}
+
+const ROL_COLORS = {
+    ciudadano: '#6b7280',
+    inspector: '#3b82f6',
+    responsable_area: '#f97316',
+    administrador: '#6366f1',
+}
 
 export default function Usuarios() {
     const [usuarios, setUsuarios] = useState([])
     const [loading, setLoading] = useState(true)
-    const [searchTerm, setSearchTerm] = useState('')
-
-    // Datos para el select de área
     const [areas, setAreas] = useState([])
+    const [busqueda, setBusqueda] = useState('')
 
     // Modal crear/editar
     const [showModal, setShowModal] = useState(false)
@@ -39,11 +35,10 @@ export default function Usuarios() {
         nombre: '',
         correo: '',
         telefono: '',
-        contrasena: '',        // solo en crear; en editar opcional
+        contrasenaHash: '',
         rol: 'ciudadano',
-        areaId: '',
+        area: '',
         activo: true,
-        fotoUrl: '',
     })
     const [saving, setSaving] = useState(false)
 
@@ -51,7 +46,6 @@ export default function Usuarios() {
     const [showConfirm, setShowConfirm] = useState(false)
     const [eliminandoId, setEliminandoId] = useState(null)
 
-    // Cargar usuarios y áreas
     useEffect(() => {
         loadUsuarios()
         loadAreas()
@@ -77,44 +71,32 @@ export default function Usuarios() {
         }
     }
 
-    // Filtro de búsqueda local
-    const filtered = useMemo(() => {
-        if (!searchTerm.trim()) return usuarios
-        const term = searchTerm.toLowerCase()
-        return usuarios.filter(
-            u =>
-                u.nombre.toLowerCase().includes(term) ||
-                u.correo.toLowerCase().includes(term)
+    // Filtrar por nombre o correo
+    const filtrados = useMemo(() => {
+        if (!busqueda.trim()) return usuarios
+        const q = busqueda.toLowerCase()
+        return usuarios.filter(u =>
+            u.nombre?.toLowerCase().includes(q) ||
+            u.correo?.toLowerCase().includes(q)
         )
-    }, [usuarios, searchTerm])
+    }, [usuarios, busqueda])
 
-    // --- MODAL CREAR/EDITAR ---
     function abrirCrear() {
         setEditando(null)
-        setForm({
-            nombre: '',
-            correo: '',
-            telefono: '',
-            contrasena: '',
-            rol: 'ciudadano',
-            areaId: '',
-            activo: true,
-            fotoUrl: '',
-        })
+        setForm({ nombre: '', correo: '', telefono: '', contrasenaHash: '', rol: 'ciudadano', area: '', activo: true })
         setShowModal(true)
     }
 
-    function abrirEditar(user) {
-        setEditando(user)
+    function abrirEditar(usuario) {
+        setEditando(usuario)
         setForm({
-            nombre: user.nombre || '',
-            correo: user.correo || '',   // se muestra pero el PATCH no lo actualiza (por ahora)
-            telefono: user.telefono || '',
-            contrasena: '',              // en editar se deja vacío (solo si se quiere cambiar)
-            rol: user.rol || 'ciudadano',
-            areaId: user.area?.id || (typeof user.area === 'object' ? user.area.id : user.area) || '',
-            activo: user.activo ?? true,
-            fotoUrl: user.fotoUrl || '',
+            nombre: usuario.nombre || '',
+            correo: usuario.correo || '',
+            telefono: usuario.telefono || '',
+            contrasenaHash: '',
+            rol: usuario.rol || 'ciudadano',
+            area: usuario.area?.id || '',
+            activo: usuario.activo ?? true,
         })
         setShowModal(true)
     }
@@ -126,23 +108,21 @@ export default function Usuarios() {
 
     async function handleGuardar() {
         if (!form.nombre.trim() || !form.correo.trim()) return
+        if (!editando && !form.contrasenaHash.trim()) return
         setSaving(true)
 
-        // Construir payload para el backend
         const payload = {
             nombre: form.nombre,
             correo: form.correo,
-            telefono: form.telefono,
-            contrasenaHash: form.contrasena || undefined, // solo si se escribió
+            telefono: form.telefono || null,
             rol: form.rol,
-            area: form.areaId ? { id: Number(form.areaId) } : null,
             activo: form.activo,
-            fotoUrl: form.fotoUrl || null,
+            area: form.area ? { id: parseInt(form.area) } : null,
         }
 
-        // Si estamos editando y no se escribió contraseña, la quitamos para no enviar null
-        if (editando && !form.contrasena) {
-            delete payload.contrasenaHash
+        // Solo enviar contraseña si se ingresó
+        if (form.contrasenaHash.trim()) {
+            payload.contrasenaHash = form.contrasenaHash
         }
 
         try {
@@ -166,23 +146,18 @@ export default function Usuarios() {
         }
     }
 
-    // --- TOGGLE ACTIVO/INACTIVO ---
-    async function toggleActivo(user) {
-        const nuevoEstado = !user.activo
+    async function handleToggleActivo(usuario) {
         try {
-            await apiFetch(`/usuarios/${user.id}`, {
+            await apiFetch(`/usuarios/${usuario.id}`, {
                 method: 'PATCH',
-                body: JSON.stringify({ activo: nuevoEstado }),
+                body: JSON.stringify({ activo: !usuario.activo }),
             })
-            setUsuarios(prev =>
-                prev.map(u => (u.id === user.id ? { ...u, activo: nuevoEstado } : u))
-            )
+            await loadUsuarios()
         } catch (error) {
-            console.error('Error cambiando estado activo:', error)
+            console.error('Error actualizando estado:', error)
         }
     }
 
-    // --- ELIMINAR ---
     function confirmarEliminar(id) {
         setEliminandoId(id)
         setShowConfirm(true)
@@ -223,32 +198,16 @@ export default function Usuarios() {
             </div>
 
             {/* --- BUSCADOR --- */}
-            <div style={{ marginBottom: '16px', position: 'relative' }}>
-                <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-                <input
-                    type="text"
-                    placeholder="Buscar por nombre o correo..."
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    style={{
-                        width: '100%',
-                        maxWidth: '400px',
-                        padding: '8px 12px 8px 32px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border-light)',
-                        fontSize: 'var(--font-size-sm)',
-                        background: 'var(--bg-input)',
-                        color: 'var(--text-primary)',
-                    }}
-                />
-                {searchTerm && (
-                    <button
-                        onClick={() => setSearchTerm('')}
-                        style={{ position: 'absolute', left: '380px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
-                    >
-                        <XCircle size={16} />
-                    </button>
-                )}
+            <div className="filters-bar" style={{ marginBottom: '20px' }}>
+                <div className="filter-search">
+                    <Search size={16} style={{ color: 'var(--text-secondary)' }} />
+                    <input
+                        type="text"
+                        placeholder="Buscar por nombre o correo..."
+                        value={busqueda}
+                        onChange={e => setBusqueda(e.target.value)}
+                    />
+                </div>
             </div>
 
             {/* --- TABLA --- */}
@@ -256,55 +215,78 @@ export default function Usuarios() {
                 <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                         <tr>
-                            <th style={thStyle}>Nombre</th>
+                            <th style={thStyle}>Usuario</th>
                             <th style={thStyle}>Correo</th>
                             <th style={thStyle}>Teléfono</th>
                             <th style={thStyle}>Rol</th>
                             <th style={thStyle}>Área</th>
-                            <th style={thStyle}>Activo</th>
+                            <th style={thStyle}>Estado</th>
                             <th style={thStyle}>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {filtered.map(user => (
-                            <tr key={user.id} style={{ ...trStyle, opacity: user.activo === false ? 0.5 : 1 }}>
-                                <td style={tdStyle}><strong>{user.nombre}</strong></td>
-                                <td style={{ ...tdStyle, color: 'var(--text-secondary)' }}>{user.correo}</td>
-                                <td style={tdStyle}>{user.telefono || '—'}</td>
+                        {filtrados.map(u => (
+                            <tr key={u.id} style={{ opacity: u.activo ? 1 : 0.6 }}>
+                                {/* Avatar + nombre */}
+                                <td style={tdStyle}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <div style={{
+                                            width: '36px',
+                                            height: '36px',
+                                            borderRadius: '50%',
+                                            background: 'var(--accent-gradient)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            color: 'white',
+                                            fontWeight: 700,
+                                            fontSize: 'var(--font-size-sm)',
+                                            flexShrink: 0,
+                                        }}>
+                                            {u.nombre?.charAt(0).toUpperCase()}
+                                        </div>
+                                        <strong>{u.nombre}</strong>
+                                    </div>
+                                </td>
+                                <td style={{ ...tdStyle, color: 'var(--text-secondary)', fontSize: 'var(--font-size-sm)' }}>{u.correo}</td>
+                                <td style={{ ...tdStyle, color: 'var(--text-secondary)' }}>{u.telefono || '—'}</td>
+                                <td style={tdStyle}>
+                                    <span style={{
+                                        padding: '3px 10px',
+                                        borderRadius: '999px',
+                                        fontSize: 'var(--font-size-xs)',
+                                        fontWeight: 600,
+                                        background: `${ROL_COLORS[u.rol]}20`,
+                                        color: ROL_COLORS[u.rol],
+                                    }}>
+                                        {ROL_LABELS[u.rol] || u.rol}
+                                    </span>
+                                </td>
+                                <td style={{ ...tdStyle, color: 'var(--text-secondary)', fontSize: 'var(--font-size-sm)' }}>
+                                    {u.area?.nombre || '—'}
+                                </td>
                                 <td style={tdStyle}>
                                     <span style={{
                                         padding: '2px 10px',
                                         borderRadius: '999px',
                                         fontSize: 'var(--font-size-xs)',
                                         fontWeight: 600,
-                                        background: user.rol === 'administrador' ? 'rgba(99,102,241,0.15)' :
-                                            user.rol === 'responsable_area' ? 'rgba(245,158,11,0.15)' :
-                                                user.rol === 'inspector' ? 'rgba(16,185,129,0.15)' :
-                                                    'rgba(107,114,128,0.15)', // ciudadano u otros
-                                        color: user.rol === 'administrador' ? '#6366f1' :
-                                            user.rol === 'responsable_area' ? '#f59e0b' :
-                                                user.rol === 'inspector' ? '#10b981' : '#6b7280',
+                                        background: u.activo ? 'rgba(16,185,129,0.15)' : 'rgba(107,114,128,0.15)',
+                                        color: u.activo ? '#10b981' : '#6b7280',
                                     }}>
-                                        {user.rol}
+                                        {u.activo ? 'Activo' : 'Inactivo'}
                                     </span>
                                 </td>
-                                <td style={tdStyle}>{user.area?.nombre || (typeof user.area === 'string' ? user.area : '—')}</td>
                                 <td style={tdStyle}>
-                                    <button
-                                        onClick={() => toggleActivo(user)}
-                                        style={{ ...btnIconStyle(user.activo !== false ? '#10b981' : '#6b7280'), margin: 'auto' }}
-                                        title={user.activo !== false ? 'Desactivar' : 'Activar'}
-                                    >
-                                        {user.activo !== false ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
-                                    </button>
-                                </td>
-                                <td style={tdStyle}>
-                                    <div style={{ display: 'flex', gap: '8px' }}>
-                                        <button onClick={() => abrirEditar(user)} title="Editar" style={btnIconStyle('#3b82f6')}>
-                                            <Pencil size={15} />
+                                    <div style={{ display: 'flex', gap: '6px' }}>
+                                        <button onClick={() => abrirEditar(u)} title="Editar" style={btnIconStyle('#3b82f6')}>
+                                            <Pencil size={14} />
                                         </button>
-                                        <button onClick={() => confirmarEliminar(user.id)} title="Eliminar" style={btnIconStyle('#ef4444')}>
-                                            <Trash2 size={15} />
+                                        <button onClick={() => handleToggleActivo(u)} title={u.activo ? 'Desactivar' : 'Activar'} style={btnIconStyle(u.activo ? '#10b981' : '#6b7280')}>
+                                            {u.activo ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                                        </button>
+                                        <button onClick={() => confirmarEliminar(u.id)} title="Eliminar" style={btnIconStyle('#ef4444')}>
+                                            <Trash2 size={14} />
                                         </button>
                                     </div>
                                 </td>
@@ -313,20 +295,20 @@ export default function Usuarios() {
                     </tbody>
                 </table>
 
-                {filtered.length === 0 && (
+                {filtrados.length === 0 && (
                     <div className="empty-state">
-                        <Search size={40} style={{ color: 'var(--text-secondary)', marginBottom: '12px' }} />
-                        <div className="empty-state-title">Sin resultados</div>
+                        <Users size={40} style={{ color: 'var(--text-secondary)', marginBottom: '12px' }} />
+                        <div className="empty-state-title">Sin usuarios</div>
                         <div className="empty-state-text">
-                            {searchTerm ? 'Ningún usuario coincide con la búsqueda' : 'No hay usuarios registrados'}
+                            {busqueda ? 'No se encontraron usuarios con esa búsqueda' : 'Crea el primer usuario con el botón de arriba'}
                         </div>
                     </div>
                 )}
             </div>
 
             {/* ============================================
-          MODAL CREAR / EDITAR USUARIO
-      ============================================ */}
+          MODAL CREAR / EDITAR
+          ============================================ */}
             <Modal
                 isOpen={showModal}
                 onClose={cerrarModal}
@@ -334,7 +316,11 @@ export default function Usuarios() {
                 footer={
                     <>
                         <button className="btn-secondary" onClick={cerrarModal}>Cancelar</button>
-                        <button className="btn-primary" onClick={handleGuardar} disabled={saving || !form.nombre.trim() || !form.correo.trim()}>
+                        <button
+                            className="btn-primary"
+                            onClick={handleGuardar}
+                            disabled={saving || !form.nombre.trim() || !form.correo.trim() || (!editando && !form.contrasenaHash.trim())}
+                        >
                             {saving ? 'Guardando...' : editando ? 'Guardar Cambios' : 'Crear Usuario'}
                         </button>
                     </>
@@ -342,56 +328,69 @@ export default function Usuarios() {
             >
                 <div className="form-group">
                     <label className="form-label">Nombre *</label>
-                    <input className="form-input" type="text" placeholder="Nombre completo" value={form.nombre}
-                        onChange={e => setForm({ ...form, nombre: e.target.value })} />
+                    <input
+                        className="form-input"
+                        type="text"
+                        placeholder="Nombre completo"
+                        value={form.nombre}
+                        onChange={e => setForm({ ...form, nombre: e.target.value })}
+                    />
                 </div>
 
                 <div className="form-group">
                     <label className="form-label">Correo *</label>
-                    <input className="form-input" type="email" placeholder="correo@ejemplo.com" value={form.correo}
+                    <input
+                        className="form-input"
+                        type="email"
+                        placeholder="correo@ejemplo.com"
+                        value={form.correo}
                         onChange={e => setForm({ ...form, correo: e.target.value })}
-                        disabled={!!editando}  // el correo no se puede cambiar en edición según el PATCH actual
-                        title={editando ? 'El correo no se puede modificar con el controlador actual' : ''}
+                        disabled={!!editando} // No permitir cambiar correo al editar
                     />
                 </div>
 
-                <div style={{ display: 'flex', gap: '16px' }}>
-                    <div className="form-group" style={{ flex: 1 }}>
-                        <label className="form-label">Teléfono</label>
-                        <input className="form-input" type="text" placeholder="999888777" value={form.telefono}
-                            onChange={e => setForm({ ...form, telefono: e.target.value })} />
-                    </div>
-                    <div className="form-group" style={{ flex: 1 }}>
-                        <label className="form-label">Contraseña {editando ? '(dejar vacío para no cambiar)' : '*'}</label>
-                        <input className="form-input" type="password" placeholder="Contraseña" value={form.contrasena}
-                            onChange={e => setForm({ ...form, contrasena: e.target.value })} />
-                    </div>
+                <div className="form-group">
+                    <label className="form-label">
+                        {editando ? 'Nueva contraseña (dejar vacío para no cambiar)' : 'Contraseña *'}
+                    </label>
+                    <input
+                        className="form-input"
+                        type="password"
+                        placeholder={editando ? 'Dejar vacío para mantener' : 'Contraseña'}
+                        value={form.contrasenaHash}
+                        onChange={e => setForm({ ...form, contrasenaHash: e.target.value })}
+                    />
+                </div>
+
+                <div className="form-group">
+                    <label className="form-label">Teléfono</label>
+                    <input
+                        className="form-input"
+                        type="text"
+                        placeholder="999999999"
+                        value={form.telefono}
+                        onChange={e => setForm({ ...form, telefono: e.target.value })}
+                    />
                 </div>
 
                 <div style={{ display: 'flex', gap: '16px' }}>
                     <div className="form-group" style={{ flex: 1 }}>
                         <label className="form-label">Rol</label>
                         <select className="form-select" value={form.rol} onChange={e => setForm({ ...form, rol: e.target.value })}>
-                            {ROLES.map(rol => (
-                                <option key={rol} value={rol}>{rol}</option>
+                            {Object.entries(ROL_LABELS).map(([key, label]) => (
+                                <option key={key} value={key}>{label}</option>
                             ))}
                         </select>
                     </div>
                     <div className="form-group" style={{ flex: 1 }}>
                         <label className="form-label">Área</label>
-                        <select className="form-select" value={form.areaId} onChange={e => setForm({ ...form, areaId: e.target.value })}>
+                        <select className="form-select" value={form.area} onChange={e => setForm({ ...form, area: e.target.value })}>
                             <option value="">Sin área</option>
-                            {areas.map(area => (
-                                <option key={area.id} value={area.id}>{area.nombre}</option>
+                            {areas.map(a => (
+                                <option key={a.id} value={a.id}>{a.nombre}</option>
                             ))}
                         </select>
                     </div>
-                </div>
-
-                <div className="form-group">
-                    <label className="form-label">URL de foto</label>
-                    <input className="form-input" type="text" placeholder="https://..." value={form.fotoUrl}
-                        onChange={e => setForm({ ...form, fotoUrl: e.target.value })} />
                 </div>
 
                 <div className="form-group">
@@ -404,18 +403,11 @@ export default function Usuarios() {
                         <span className="form-label" style={{ margin: 0 }}>Usuario activo</span>
                     </label>
                 </div>
-
-                {editando && (
-                    <div style={{ fontSize: 'var(--font-size-xs)', color: '#f59e0b', marginTop: '8px' }}>
-                        ⚠️ El controlador actual solo actualiza nombre, teléfono y contraseña.
-                        El resto de campos se muestran pero no se guardarán hasta que amplíes el PATCH.
-                    </div>
-                )}
             </Modal>
 
             {/* ============================================
           MODAL CONFIRMAR ELIMINACIÓN
-      ============================================ */}
+          ============================================ */}
             <Modal
                 isOpen={showConfirm}
                 onClose={() => setShowConfirm(false)}
@@ -433,14 +425,14 @@ export default function Usuarios() {
                 }
             >
                 <p style={{ color: 'var(--text-secondary)' }}>
-                    ¿Estás seguro que deseas eliminar este usuario? Esta acción no se puede deshacer.
+                    ¿Estás seguro que deseas eliminar este usuario? Esta acción no se puede deshacer y podría afectar incidencias relacionadas.
                 </p>
             </Modal>
         </div>
     )
 }
 
-// --- Estilos inline reutilizables ---
+// --- Estilos inline ---
 const thStyle = {
     textAlign: 'left',
     padding: '10px 16px',
@@ -456,10 +448,6 @@ const tdStyle = {
     padding: '12px 16px',
     borderBottom: '1px solid var(--border-light)',
     fontSize: 'var(--font-size-sm)',
-}
-
-const trStyle = {
-    transition: 'background 0.15s',
 }
 
 function btnIconStyle(color) {

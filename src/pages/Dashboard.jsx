@@ -105,12 +105,12 @@ export default function Dashboard() {
    * Cada barra representa un estado con su color correspondiente
    */
   const barData = [
-    { name: 'Pendiente',    value: metrics.porEstado.pendiente,    color: '#f59e0b' },
-    { name: 'En Revisión',  value: metrics.porEstado.en_revision,  color: '#3b82f6' },
-    { name: 'En Proceso',   value: metrics.porEstado.en_proceso,   color: '#f97316' },
-    { name: 'Resuelto',     value: metrics.porEstado.resuelto,     color: '#10b981' },
-    { name: 'Rechazado',    value: metrics.porEstado.rechazado,    color: '#ef4444' },
-    { name: 'Cerrado',      value: metrics.porEstado.cerrado,      color: '#6b7280' },
+    { name: 'Pendiente', value: metrics.porEstado.pendiente, color: '#f59e0b' },
+    { name: 'En Revisión', value: metrics.porEstado.en_revision, color: '#3b82f6' },
+    { name: 'En Proceso', value: metrics.porEstado.en_proceso, color: '#f97316' },
+    { name: 'Resuelto', value: metrics.porEstado.resuelto, color: '#10b981' },
+    { name: 'Rechazado', value: metrics.porEstado.rechazado, color: '#ef4444' },
+    { name: 'Cerrado', value: metrics.porEstado.cerrado, color: '#6b7280' },
   ]
 
   /**
@@ -118,10 +118,10 @@ export default function Dashboard() {
    * Cada segmento del donut representa una prioridad
    */
   const donutData = [
-    { name: 'Baja',     value: metrics.porPrioridad.baja,     color: '#10b981' },
-    { name: 'Media',    value: metrics.porPrioridad.media,    color: '#f59e0b' },
-    { name: 'Alta',     value: metrics.porPrioridad.alta,     color: '#f97316' },
-    { name: 'Crítica',  value: metrics.porPrioridad.critica,  color: '#ef4444' },
+    { name: 'Baja', value: metrics.porPrioridad.baja, color: '#10b981' },
+    { name: 'Media', value: metrics.porPrioridad.media, color: '#f59e0b' },
+    { name: 'Alta', value: metrics.porPrioridad.alta, color: '#f97316' },
+    { name: 'Crítica', value: metrics.porPrioridad.critica, color: '#ef4444' },
   ]
 
   /**
@@ -166,8 +166,8 @@ export default function Dashboard() {
         <Card
           title="Total Incidencias"
           value={metrics.total}
-          change={5}
-          changeText="este mes"
+          change={metrics.cambioTotal}
+          changeText="vs mes anterior"
           icon={AlertTriangle}
           accentColor="#6366f1"
         />
@@ -175,8 +175,8 @@ export default function Dashboard() {
         <Card
           title="Pendientes"
           value={metrics.porEstado.pendiente}
-          change={-3}
-          changeText="vs anterior"
+          change={metrics.cambioPendiente}
+          changeText="vs mes anterior"
           icon={Clock}
           accentColor="#f59e0b"
         />
@@ -184,8 +184,8 @@ export default function Dashboard() {
         <Card
           title="En Proceso"
           value={metrics.porEstado.en_proceso}
-          change={8}
-          changeText="este mes"
+          change={metrics.cambioEnProceso}
+          changeText="vs mes anterior"
           icon={Loader}
           accentColor="#f97316"
         />
@@ -193,8 +193,8 @@ export default function Dashboard() {
         <Card
           title="Resueltas"
           value={metrics.porEstado.resuelto}
-          change={12}
-          changeText="este mes"
+          change={metrics.cambioResuelto}
+          changeText="vs mes anterior"
           icon={CheckCircle2}
           accentColor="#10b981"
         />

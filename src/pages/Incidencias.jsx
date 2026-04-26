@@ -1,68 +1,59 @@
 /**
  * Incidencias.jsx — Página de lista de incidencias
- * 
- * Módulo principal del panel. Muestra una tabla con todas las
- * incidencias registradas en el sistema.
- * 
- * Funcionalidades:
- * 1. FILTROS — Permite filtrar por:
- *    - Búsqueda de texto (código o descripción)
- *    - Estado (pendiente, en_revision, etc.)
- *    - Prioridad (baja, media, alta, critica)
- *    - Categoría (baches, alumbrado, etc.)
- * 
- * 2. TABLA — Columnas visibles:
- *    - Código (INC-XXXXX)
- *    - Usuario reportante
- *    - Categoría con icono
- *    - Caso asociado (si existe)
- *    - Área municipal
- *    - Estado (badge de color)
- *    - Prioridad (badge de color)
- *    - Fecha de creación
- * 
- * 3. PAGINACIÓN — Muestra 10 registros por página
- * 
- * 4. NAVEGACIÓN — Al hacer clic en una fila, navega
- *    a la vista de detalle de esa incidencia
+ * Con funcionalidad de crear y editar
  */
 
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, Filter, ChevronLeft, ChevronRight, Plus, Pencil } from 'lucide-react'
 import { fetchIncidencias, fetchCategorias } from '../services/api'
+import { apiFetch } from '../services/apiConfig'
 import {
   estadoLabels,
   prioridadLabels,
   formatDateShort,
 } from '../utils/constants'
 import Badge from '../components/ui/Badge'
+import Modal from '../components/ui/Modal'
 
-// Número de incidencias por página de la tabla
 const ITEMS_PER_PAGE = 10
 
 export default function Incidencias() {
-  // --- ESTADOS ---
-  const [incidencias, setIncidencias] = useState([])     // Todas las incidencias
-  const [categorias, setCategorias] = useState([])        // Categorías para filtro
-  const [loading, setLoading] = useState(true)            // Indicador de carga
-  const [search, setSearch] = useState('')                // Texto de búsqueda
-  const [filterEstado, setFilterEstado] = useState('')    // Filtro por estado
-  const [filterPrioridad, setFilterPrioridad] = useState('') // Filtro por prioridad
-  const [filterCategoria, setFilterCategoria] = useState('') // Filtro por categoría
-  const [currentPage, setCurrentPage] = useState(1)       // Página actual
+  const [incidencias, setIncidencias] = useState([])
+  const [categorias, setCategorias] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [filterEstado, setFilterEstado] = useState('')
+  const [filterPrioridad, setFilterPrioridad] = useState('')
+  const [filterCategoria, setFilterCategoria] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
 
-  // Hook para navegar a la vista de detalle
+  // Datos para formulario
+  const [usuarios, setUsuarios] = useState([])
+  const [ubicaciones, setUbicaciones] = useState([])
+  const [casos, setCasos] = useState([])
+
+  // Modal crear/editar
+  const [showModal, setShowModal] = useState(false)
+  const [editando, setEditando] = useState(null)
+  const [form, setForm] = useState({
+    descripcion: '',
+    estado: 'pendiente',
+    prioridad: 'media',
+    categoria: '',
+    usuario: '',
+    ubicacion: '',
+    caso: '',
+  })
+  const [saving, setSaving] = useState(false)
+
   const navigate = useNavigate()
 
-  // Cargar incidencias y categorías al montar el componente
   useEffect(() => {
     loadData()
+    loadFormData()
   }, [])
 
-  /**
-   * Carga incidencias y categorías desde la API
-   */
   async function loadData() {
     try {
       const [incData, catData] = await Promise.all([
@@ -78,15 +69,23 @@ export default function Incidencias() {
     }
   }
 
-  /**
-   * useMemo — Filtra las incidencias según los criterios activos.
-   * Se recalcula solo cuando cambian las incidencias o los filtros.
-   * Esto evita recalcular en cada render innecesariamente.
-   */
+  async function loadFormData() {
+    try {
+      const [usrs, ubics, css] = await Promise.all([
+        apiFetch('/usuarios'),
+        apiFetch('/ubicaciones'),
+        apiFetch('/casos'),
+      ])
+      setUsuarios(usrs)
+      setUbicaciones(ubics)
+      setCasos(css)
+    } catch (error) {
+      console.error('Error cargando datos del formulario:', error)
+    }
+  }
+
   const filtered = useMemo(() => {
     let result = [...incidencias]
-
-    // Filtrar por texto de búsqueda (código o descripción)
     if (search) {
       const searchLower = search.toLowerCase()
       result = result.filter(inc =>
@@ -95,42 +94,92 @@ export default function Incidencias() {
         inc.usuario?.nombre?.toLowerCase().includes(searchLower)
       )
     }
-
-    // Filtrar por estado seleccionado
-    if (filterEstado) {
-      result = result.filter(inc => inc.estado === filterEstado)
-    }
-
-    // Filtrar por prioridad seleccionada
-    if (filterPrioridad) {
-      result = result.filter(inc => inc.prioridad === filterPrioridad)
-    }
-
-    // Filtrar por categoría seleccionada
+    if (filterEstado) result = result.filter(inc => inc.estado === filterEstado)
+    if (filterPrioridad) result = result.filter(inc => inc.prioridad === filterPrioridad)
     if (filterCategoria) {
       result = result.filter(inc => {
         const catId = inc.categoria?.id || inc.categoriaId
         return catId === Number(filterCategoria)
       })
     }
-
     return result
   }, [incidencias, search, filterEstado, filterPrioridad, filterCategoria])
 
-  // Calcular paginación
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE)
-  // Obtener solo los items de la página actual
   const paginatedItems = filtered.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   )
 
-  // Resetear a página 1 cuando cambian los filtros
   useEffect(() => {
     setCurrentPage(1)
   }, [search, filterEstado, filterPrioridad, filterCategoria])
 
-  // Spinner de carga
+  function abrirCrear() {
+    setEditando(null)
+    setForm({ descripcion: '', estado: 'pendiente', prioridad: 'media', categoria: '', usuario: '', ubicacion: '', caso: '' })
+    setShowModal(true)
+  }
+
+  function abrirEditar(inc, e) {
+    e.stopPropagation()
+    setEditando(inc)
+    setForm({
+      descripcion: inc.descripcion || '',
+      estado: inc.estado || 'pendiente',
+      prioridad: inc.prioridad || 'media',
+      categoria: inc.categoria?.id || '',
+      usuario: inc.usuario?.id || '',
+      ubicacion: inc.ubicacion?.id || '',
+      caso: inc.caso?.id || '',
+    })
+    setShowModal(true)
+  }
+
+  function cerrarModal() {
+    setShowModal(false)
+    setEditando(null)
+  }
+
+  async function handleGuardar() {
+    if (!form.descripcion.trim() || !form.categoria || !form.usuario || !form.ubicacion) return
+    setSaving(true)
+
+    const payload = {
+      descripcion: form.descripcion,
+      estado: form.estado,
+      prioridad: form.prioridad,
+      categoria: { id: parseInt(form.categoria) },
+      usuario: { id: parseInt(form.usuario) },
+      ubicacion: { id: parseInt(form.ubicacion) },
+      caso: form.caso ? { id: parseInt(form.caso) } : null,
+    }
+
+    try {
+      if (editando) {
+        await apiFetch(`/incidencias/${editando.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            descripcion: form.descripcion,
+            estado: form.estado,
+            prioridad: form.prioridad,
+          }),
+        })
+      } else {
+        await apiFetch('/incidencias', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        })
+      }
+      await loadData()
+      cerrarModal()
+    } catch (error) {
+      console.error('Error guardando incidencia:', error)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="empty-state">
@@ -141,17 +190,22 @@ export default function Incidencias() {
 
   return (
     <div>
-      {/* --- TÍTULO --- */}
-      <h1 className="page-title">Incidencias</h1>
-      <p className="page-subtitle">
-        Gestión completa de reportes ciudadanos — {incidencias.length} registros totales
-      </p>
+      {/* --- HEADER --- */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+        <div>
+          <h1 className="page-title">Incidencias</h1>
+          <p className="page-subtitle">
+            Gestión completa de reportes ciudadanos — {incidencias.length} registros totales
+          </p>
+        </div>
+        <button className="btn-primary" onClick={abrirCrear} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Plus size={16} />
+          Nueva Incidencia
+        </button>
+      </div>
 
-      {/* ============================================
-          BARRA DE FILTROS
-          ============================================ */}
+      {/* --- FILTROS --- */}
       <div className="filters-bar">
-        {/* Búsqueda por texto */}
         <div className="filter-search">
           <Search size={18} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
           <input
@@ -159,59 +213,31 @@ export default function Incidencias() {
             placeholder="Buscar por código, descripción o usuario..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            id="search-incidencias"
           />
         </div>
-
-        {/* Select de estado */}
-        <select
-          className="filter-select"
-          value={filterEstado}
-          onChange={e => setFilterEstado(e.target.value)}
-          id="filter-estado"
-        >
+        <select className="filter-select" value={filterEstado} onChange={e => setFilterEstado(e.target.value)}>
           <option value="">Todos los estados</option>
-          {/* Renderizar opciones desde el mapeo de estados */}
           {Object.entries(estadoLabels).map(([key, label]) => (
             <option key={key} value={key}>{label}</option>
           ))}
         </select>
-
-        {/* Select de prioridad */}
-        <select
-          className="filter-select"
-          value={filterPrioridad}
-          onChange={e => setFilterPrioridad(e.target.value)}
-          id="filter-prioridad"
-        >
+        <select className="filter-select" value={filterPrioridad} onChange={e => setFilterPrioridad(e.target.value)}>
           <option value="">Todas las prioridades</option>
           {Object.entries(prioridadLabels).map(([key, label]) => (
             <option key={key} value={key}>{label}</option>
           ))}
         </select>
-
-        {/* Select de categoría */}
-        <select
-          className="filter-select"
-          value={filterCategoria}
-          onChange={e => setFilterCategoria(e.target.value)}
-          id="filter-categoria"
-        >
+        <select className="filter-select" value={filterCategoria} onChange={e => setFilterCategoria(e.target.value)}>
           <option value="">Todas las categorías</option>
           {categorias.map(cat => (
-            <option key={cat.id} value={cat.id}>
-              {cat.icono} {cat.nombre}
-            </option>
+            <option key={cat.id} value={cat.id}>{cat.icono} {cat.nombre}</option>
           ))}
         </select>
       </div>
 
-      {/* ============================================
-          TABLA DE INCIDENCIAS
-          ============================================ */}
+      {/* --- TABLA --- */}
       <div className="table-container">
         <table className="data-table">
-          {/* Encabezados de columna */}
           <thead>
             <tr>
               <th>Código</th>
@@ -222,11 +248,10 @@ export default function Incidencias() {
               <th>Estado</th>
               <th>Prioridad</th>
               <th>Fecha</th>
+              <th>Acciones</th>
             </tr>
           </thead>
-
           <tbody>
-            {/* Renderizar cada incidencia como una fila clickeable */}
             {paginatedItems.map(inc => (
               <tr
                 key={inc.id}
@@ -234,64 +259,60 @@ export default function Incidencias() {
                 onClick={() => navigate(`/incidencias/${inc.id}`)}
                 title={`Ver detalle de ${inc.codigo}`}
               >
-                {/* Código de incidencia (estilo monoespaciado) */}
-                <td>
-                  <span className="incident-code">{inc.codigo}</span>
-                </td>
-
-                {/* Nombre del ciudadano reportante */}
+                <td><span className="incident-code">{inc.codigo}</span></td>
                 <td>{inc.usuario?.nombre || '—'}</td>
-
-                {/* Categoría con icono de color */}
                 <td>
                   <div className="category-cell">
-                    <span
-                      className="category-dot"
-                      style={{ background: inc.categoria?.color }}
-                    />
+                    <span className="category-dot" style={{ background: inc.categoria?.color }} />
                     {inc.categoria?.nombre}
                   </div>
                 </td>
-
-                {/* Caso asociado (puede ser null) */}
                 <td>
                   {inc.caso
                     ? <span style={{ fontSize: 'var(--font-size-sm)' }}>{inc.caso.titulo}</span>
                     : <span style={{ color: 'var(--text-secondary)' }}>—</span>
                   }
                 </td>
-
-                {/* Área municipal (a través del caso) */}
                 <td>
                   {inc.area
                     ? inc.area.nombre
                     : <span style={{ color: 'var(--text-secondary)' }}>—</span>
                   }
                 </td>
-
-                {/* Badge de estado */}
                 <td><Badge type="estado" value={inc.estado} /></td>
-
-                {/* Badge de prioridad */}
                 <td><Badge type="prioridad" value={inc.prioridad} /></td>
-
-                {/* Fecha de creación */}
                 <td style={{ whiteSpace: 'nowrap', color: 'var(--text-secondary)', fontSize: 'var(--font-size-sm)' }}>
                   {formatDateShort(inc.creadoEn || inc.created_at)}
+                </td>
+                <td onClick={e => e.stopPropagation()}>
+                  <button
+                    onClick={(e) => abrirEditar(inc, e)}
+                    title="Editar incidencia"
+                    style={{
+                      background: 'rgba(59,130,246,0.15)',
+                      color: '#3b82f6',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '6px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Pencil size={14} />
+                  </button>
                 </td>
               </tr>
             ))}
 
-            {/* Mensaje cuando no hay resultados */}
             {paginatedItems.length === 0 && (
               <tr>
-                <td colSpan={8}>
+                <td colSpan={9}>
                   <div className="empty-state">
                     <Filter size={48} className="empty-state-icon" />
                     <div className="empty-state-title">Sin resultados</div>
-                    <div className="empty-state-text">
-                      No se encontraron incidencias con los filtros seleccionados
-                    </div>
+                    <div className="empty-state-text">No se encontraron incidencias con los filtros seleccionados</div>
                   </div>
                 </td>
               </tr>
@@ -299,12 +320,9 @@ export default function Incidencias() {
           </tbody>
         </table>
 
-        {/* ============================================
-            PAGINACIÓN
-            ============================================ */}
+        {/* --- PAGINACIÓN --- */}
         {totalPages > 1 && (
           <div className="table-pagination">
-            {/* Texto indicando rango actual */}
             <span>
               Mostrando {(currentPage - 1) * ITEMS_PER_PAGE + 1}
               {' - '}
@@ -312,43 +330,122 @@ export default function Incidencias() {
               {' de '}
               {filtered.length}
             </span>
-
-            {/* Botones de paginación */}
             <div className="pagination-buttons">
-              {/* Botón anterior */}
-              <button
-                className="pagination-btn"
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                aria-label="Página anterior"
-              >
+              <button className="pagination-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
                 <ChevronLeft size={16} />
               </button>
-
-              {/* Botones numéricos de página */}
               {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                <button
-                  key={page}
-                  className={`pagination-btn ${currentPage === page ? 'active' : ''}`}
-                  onClick={() => setCurrentPage(page)}
-                >
+                <button key={page} className={`pagination-btn ${currentPage === page ? 'active' : ''}`} onClick={() => setCurrentPage(page)}>
                   {page}
                 </button>
               ))}
-
-              {/* Botón siguiente */}
-              <button
-                className="pagination-btn"
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                aria-label="Página siguiente"
-              >
+              <button className="pagination-btn" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
                 <ChevronRight size={16} />
               </button>
             </div>
           </div>
         )}
       </div>
+
+      {/* ============================================
+          MODAL CREAR / EDITAR
+          ============================================ */}
+      <Modal
+        isOpen={showModal}
+        onClose={cerrarModal}
+        title={editando ? 'Editar Incidencia' : 'Nueva Incidencia'}
+        footer={
+          <>
+            <button className="btn-secondary" onClick={cerrarModal}>Cancelar</button>
+            <button
+              className="btn-primary"
+              onClick={handleGuardar}
+              disabled={saving || !form.descripcion.trim() || !form.categoria || (!editando && (!form.usuario || !form.ubicacion))}
+            >
+              {saving ? 'Guardando...' : editando ? 'Guardar Cambios' : 'Crear Incidencia'}
+            </button>
+          </>
+        }
+      >
+        <div className="form-group">
+          <label className="form-label">Descripción *</label>
+          <textarea
+            className="form-textarea"
+            placeholder="Describe la incidencia..."
+            value={form.descripcion}
+            onChange={e => setForm({ ...form, descripcion: e.target.value })}
+          />
+        </div>
+
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <div className="form-group" style={{ flex: 1 }}>
+            <label className="form-label">Estado</label>
+            <select className="form-select" value={form.estado} onChange={e => setForm({ ...form, estado: e.target.value })}>
+              {Object.entries(estadoLabels).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group" style={{ flex: 1 }}>
+            <label className="form-label">Prioridad</label>
+            <select className="form-select" value={form.prioridad} onChange={e => setForm({ ...form, prioridad: e.target.value })}>
+              {Object.entries(prioridadLabels).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Categoría *</label>
+          <select
+            className="form-select"
+            value={form.categoria}
+            onChange={e => setForm({ ...form, categoria: e.target.value })}
+            disabled={!!editando}
+          >
+            <option value="">Seleccionar categoría...</option>
+            {categorias.map(cat => (
+              <option key={cat.id} value={cat.id}>{cat.nombre}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Solo mostrar estos campos al crear */}
+        {!editando && (
+          <>
+            <div className="form-group">
+              <label className="form-label">Usuario Reportante *</label>
+              <select className="form-select" value={form.usuario} onChange={e => setForm({ ...form, usuario: e.target.value })}>
+                <option value="">Seleccionar usuario...</option>
+                {usuarios.map(u => (
+                  <option key={u.id} value={u.id}>{u.nombre} ({u.correo})</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Ubicación *</label>
+              <select className="form-select" value={form.ubicacion} onChange={e => setForm({ ...form, ubicacion: e.target.value })}>
+                <option value="">Seleccionar ubicación...</option>
+                {ubicaciones.map(u => (
+                  <option key={u.id} value={u.id}>{u.direccion || `${u.latitud}, ${u.longitud}`}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Caso asociado</label>
+              <select className="form-select" value={form.caso} onChange={e => setForm({ ...form, caso: e.target.value })}>
+                <option value="">Sin caso</option>
+                {casos.map(c => (
+                  <option key={c.id} value={c.id}>{c.titulo}</option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
+      </Modal>
     </div>
   )
 }
