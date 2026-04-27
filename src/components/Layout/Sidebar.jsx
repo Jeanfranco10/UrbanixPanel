@@ -48,7 +48,7 @@ export default function Sidebar({ isOpen, onClose }) {
       icon: AlertTriangle,
       label: 'Incidencias',
       badge: null                   // Número total de incidencias (mock)
-    },
+    },/*
     {
       path: '/casos',
       icon: FolderOpen,
@@ -60,7 +60,7 @@ export default function Sidebar({ isOpen, onClose }) {
       icon: MapPin,
       label: 'Áreas Municipales',
       badge: null
-    },
+    },*/
     {
       path: '/categorias',
       icon: Tag,

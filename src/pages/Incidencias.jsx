@@ -243,8 +243,10 @@ export default function Incidencias() {
               <th>Código</th>
               <th>Usuario</th>
               <th>Categoría</th>
-              <th>Caso</th>
+              {/*<th>Caso</th>*/}
+              {/*
               <th>Área Municipal</th>
+              */}
               <th>Estado</th>
               <th>Prioridad</th>
               <th>Fecha</th>
@@ -267,7 +269,7 @@ export default function Incidencias() {
                     {inc.categoria?.nombre}
                   </div>
                 </td>
-                <td>
+                {/*<td>
                   {inc.caso
                     ? <span style={{ fontSize: 'var(--font-size-sm)' }}>{inc.caso.titulo}</span>
                     : <span style={{ color: 'var(--text-secondary)' }}>—</span>
@@ -278,7 +280,7 @@ export default function Incidencias() {
                     ? inc.area.nombre
                     : <span style={{ color: 'var(--text-secondary)' }}>—</span>
                   }
-                </td>
+                </td>*/}
                 <td><Badge type="estado" value={inc.estado} /></td>
                 <td><Badge type="prioridad" value={inc.prioridad} /></td>
                 <td style={{ whiteSpace: 'nowrap', color: 'var(--text-secondary)', fontSize: 'var(--font-size-sm)' }}>
