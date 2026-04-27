@@ -258,7 +258,7 @@ export default function Incidencias() {
               <tr
                 key={inc.id}
                 className="clickable"
-                onClick={() => navigate(`/incidencias/${inc.id}`)}
+                //onClick={() => navigate(`/incidencias/${inc.id}`)}
                 title={`Ver detalle de ${inc.codigo}`}
               >
                 <td><span className="incident-code">{inc.codigo}</span></td>
