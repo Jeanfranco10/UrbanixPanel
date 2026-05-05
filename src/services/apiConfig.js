@@ -7,7 +7,7 @@
  */
 
 // URL base del API de Spring Boot
-export const API_BASE_URL = 'https://urbanix.onrender.com/api'
+export const API_BASE_URL = 'http://localhost:8080/api'
 
 /**
  * Función helper para hacer peticiones HTTP al API.

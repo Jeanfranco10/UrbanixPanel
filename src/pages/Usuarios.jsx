@@ -219,7 +219,7 @@ export default function Usuarios() {
                             <th style={thStyle}>Correo</th>
                             <th style={thStyle}>Teléfono</th>
                             <th style={thStyle}>Rol</th>
-                            {/*<th style={thStyle}>Área</th>*/}
+                            <th style={thStyle}>Área</th>
                             <th style={thStyle}>Estado</th>
                             <th style={thStyle}>Acciones</th>
                         </tr>
@@ -262,9 +262,9 @@ export default function Usuarios() {
                                         {ROL_LABELS[u.rol] || u.rol}
                                     </span>
                                 </td>
-                                {/*<td style={{ ...tdStyle, color: 'var(--text-secondary)', fontSize: 'var(--font-size-sm)' }}>
+                                <td style={{ ...tdStyle, color: 'var(--text-secondary)', fontSize: 'var(--font-size-sm)' }}>
                                     {u.area?.nombre || '—'}
-                                </td>*/}
+                                </td>
                                 <td style={tdStyle}>
                                     <span style={{
                                         padding: '2px 10px',
