@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate ,useSearchParams} from 'react-router-dom'
 import { Search, Filter, ChevronLeft, ChevronRight, Plus, Pencil } from 'lucide-react'
 import { fetchIncidencias, fetchCategorias } from '../services/api'
 import { apiFetch } from '../services/apiConfig'
@@ -27,6 +27,13 @@ export default function Incidencias() {
   const [filterPrioridad, setFilterPrioridad] = useState('')
   const [filterCategoria, setFilterCategoria] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
+
+  const [searchParams] = useSearchParams() // <- aquí
+
+  useEffect(() => {
+    const q = searchParams.get('search')
+    if (q) setSearch(q)
+  }, [searchParams])
 
   // Datos para formulario
   const [usuarios, setUsuarios] = useState([])

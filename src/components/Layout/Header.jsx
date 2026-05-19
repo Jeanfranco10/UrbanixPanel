@@ -14,7 +14,10 @@
  */
 
 import { useNavigate } from 'react-router-dom'
-import { Search, Bell, Sun, Moon, Menu, LogOut } from 'lucide-react'
+import { useState } from 'react'
+import { Search, Bell, Sun, Moon, Menu, LogOut,X, Save } from 'lucide-react'
+import { apiFetch } from '../../services/apiConfig'
+import Modal from '../ui/Modal'
 import { useTheme } from '../../context/ThemeContext'
 import { useAuth } from '../../context/AuthContext'
 
@@ -30,6 +33,53 @@ export default function Header({ onMenuClick }) {
   // Hook para redirigir al login después del logout
   const navigate = useNavigate()
 
+
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const [showPerfil, setShowPerfil] = useState(false)
+  const [formPerfil, setFormPerfil] = useState({
+  nombre: '',
+  telefono: '',
+  contrasenaHash: '',
+  })
+const [savingPerfil, setSavingPerfil] = useState(false)
+
+function abrirPerfil() {
+  setFormPerfil({
+    nombre: user?.nombre || '',
+    telefono: user?.telefono || '',
+    contrasenaHash: '',
+  })
+  setShowPerfil(true)
+}
+
+async function handleGuardarPerfil() {
+  setSavingPerfil(true)
+  try {
+    const payload = {}
+    if (formPerfil.nombre.trim()) payload.nombre = formPerfil.nombre
+    if (formPerfil.telefono.trim()) payload.telefono = formPerfil.telefono
+    if (formPerfil.contrasenaHash.trim()) payload.contrasenaHash = formPerfil.contrasenaHash
+
+    await apiFetch(`/usuarios/${user.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+    setShowPerfil(false)
+  } catch (error) {
+    console.error('Error actualizando perfil:', error)
+  } finally {
+    setSavingPerfil(false)
+  }
+}
+
+  function handleSearch(e) {
+  if (e.key === 'Enter' && searchQuery.trim()) {
+    navigate(`/incidencias?search=${encodeURIComponent(searchQuery.trim())}`)
+    setSearchQuery('')
+  }
+}
+
   /**
    * Cierra la sesión y redirige al login
    */
@@ -37,6 +87,7 @@ export default function Header({ onMenuClick }) {
     logout()
     navigate('/login')
   }
+  
 
   /**
    * Genera un saludo dinámico basado en la hora actual
@@ -62,6 +113,9 @@ export default function Header({ onMenuClick }) {
       year: 'numeric',
     })
   }
+
+
+  
 
   return (
     <header className="header">
@@ -98,6 +152,9 @@ export default function Header({ onMenuClick }) {
             placeholder="Buscar incidencias..."
             id="global-search"
             aria-label="Buscar incidencias"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            onKeyDown={handleSearch}
           />
         </div>
 
@@ -127,7 +184,7 @@ export default function Header({ onMenuClick }) {
         </button>
 
         {/* Perfil del usuario logueado */}
-        <div className="header-profile">
+        <div className="header-profile" onClick={abrirPerfil} style={{ cursor: 'pointer' }}>
           {/* Avatar con las iniciales del usuario */}
           <div className="header-avatar">{user?.iniciales || 'AD'}</div>
           <div>
@@ -149,6 +206,63 @@ export default function Header({ onMenuClick }) {
           <LogOut size={20} />
         </button>
       </div>
+
+      {/* MODAL PERFIL */}
+      <Modal
+        isOpen={showPerfil}
+        onClose={() => setShowPerfil(false)}
+        title="Editar Perfil"
+        footer={
+          <>
+            <button className="btn-secondary" onClick={() => setShowPerfil(false)}>Cancelar</button>
+            <button className="btn-primary" onClick={handleGuardarPerfil} disabled={savingPerfil}>
+              {savingPerfil ? 'Guardando...' : 'Guardar Cambios'}
+            </button>
+          </>
+        }
+      >
+        <div className="form-group">
+          <label className="form-label">Nombre completo</label>
+          <input
+            className="form-input"
+            type="text"
+            value={formPerfil.nombre}
+            onChange={e => setFormPerfil({ ...formPerfil, nombre: e.target.value })}
+          />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Teléfono</label>
+          <input
+            className="form-input"
+            type="text"
+            placeholder="Opcional"
+            value={formPerfil.telefono}
+            onChange={e => setFormPerfil({ ...formPerfil, telefono: e.target.value })}
+          />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Nueva contraseña</label>
+          <input
+            className="form-input"
+            type="password"
+            placeholder="Dejar vacío para no cambiar"
+            value={formPerfil.contrasenaHash}
+            onChange={e => setFormPerfil({ ...formPerfil, contrasenaHash: e.target.value })}
+          />
+        </div>
+
+        <div style={{ marginTop: '8px', padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
+          <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', margin: 0 }}>
+            <strong>Correo:</strong> {user?.correo}
+          </p>
+          <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+            <strong>Rol:</strong> {user?.rol}
+          </p>
+        </div>
+      </Modal>
+
     </header>
   )
 }

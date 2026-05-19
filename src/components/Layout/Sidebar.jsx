@@ -26,60 +26,33 @@ import {
   Users
 } from 'lucide-react'
 
+import { useAuth } from '../../context/AuthContext'
+
 /**
  * @param {object} props
  * @param {boolean} props.isOpen - Si el sidebar está abierto (móvil)
  * @param {function} props.onClose - Función para cerrar el sidebar (móvil)
  */
 export default function Sidebar({ isOpen, onClose }) {
+
+  const { user } = useAuth()
+  const rol = user?.rol
+
   /**
    * Definición de los links de navegación
    * Cada objeto tiene: ruta, icono, etiqueta de texto, y badge opcional
    */
   const navLinks = [
-    {
-      path: '/',                    // Ruta del dashboard (página principal)
-      icon: LayoutDashboard,        // Componente del icono
-      label: 'Dashboard',           // Texto visible
-      badge: null                   // Sin badge
-    },
-    {
-      path: '/incidencias',
-      icon: AlertTriangle,
-      label: 'Incidencias',
-      badge: null                   // Número total de incidencias (mock)
-    },
-    {
-      path: '/casos',
-      icon: FolderOpen,
-      label: 'Casos',
-      badge: null
-    },
-    {
-      path: '/areas',
-      icon: MapPin,
-      label: 'Áreas Municipales',
-      badge: null
-    },
-    {
-      path: '/categorias',
-      icon: Tag,
-      label: 'Categorías',
-      badge: null
-    },
-    {
-      path: '/ubicaciones',
-      icon: MapPin,
-      label: 'Ubicaciones',
-      badge: null
-    },
-    {
-      path: '/usuarios',
-      icon: Users,
-      label: 'Usuarios',
-      badge: null
-    },
+    { path: '/', icon: LayoutDashboard, label: 'Dashboard', roles: ['administrador', 'responsable_area', 'inspector'] },
+    { path: '/incidencias', icon: AlertTriangle, label: 'Incidencias', roles: ['administrador', 'responsable_area', 'inspector'] },
+    { path: '/casos', icon: FolderOpen, label: 'Casos', roles: ['administrador', 'responsable_area', 'inspector'] },
+    { path: '/areas', icon: MapPin, label: 'Áreas Municipales', roles: ['administrador', 'responsable_area'] },
+    { path: '/categorias', icon: Tag, label: 'Categorías', roles: ['administrador'] },
+    { path: '/ubicaciones', icon: MapPin, label: 'Ubicaciones', roles: ['administrador'] },
+    { path: '/usuarios', icon: Users, label: 'Usuarios', roles: ['administrador'] },
   ]
+
+   const linksFiltrados = navLinks.filter(link => link.roles.includes(rol))
 
   return (
     <>
@@ -122,7 +95,7 @@ export default function Sidebar({ isOpen, onClose }) {
           <div className="sidebar-section-title">Principal</div>
 
           {/* Renderizar cada link de navegación */}
-          {navLinks.map(link => (
+          {linksFiltrados.map(link => (
             <NavLink
               key={link.path}
               to={link.path}

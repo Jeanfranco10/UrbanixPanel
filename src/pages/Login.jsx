@@ -183,18 +183,7 @@ export default function Login() {
           </button>
         </form>
 
-        {/* --- CREDENCIALES DE DEMO --- */}
-        <div className="login-demo">
-          <p className="login-demo-title">Credenciales de prueba:</p>
-          <div className="login-demo-creds">
-            <div className="login-demo-item" onClick={() => { setUsername('admin'); setPassword('admin123') }}>
-              <strong>Admin:</strong> admin / admin123
-            </div>
-            <div className="login-demo-item" onClick={() => { setUsername('inspector'); setPassword('inspector123') }}>
-              <strong>Inspector:</strong> inspector / inspector123
-            </div>
-          </div>
-        </div>
+       
       </div>
 
       {/* Botón de tema en esquina */}

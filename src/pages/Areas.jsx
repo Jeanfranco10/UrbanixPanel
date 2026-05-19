@@ -335,7 +335,9 @@ export default function Areas() {
             onChange={e => setForm({ ...form, responsable: e.target.value || null })}
           >
             <option value="">Sin responsable</option>
-            {usuarios.map(u => (
+            {usuarios
+            .filter(u => u.activo)
+            .map(u => (
               <option key={u.id} value={u.id}>{u.nombre} ({u.rol})</option>
             ))}
           </select>

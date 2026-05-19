@@ -72,14 +72,28 @@ export default function App() {
               <Route path="incidencias/:id" element={<DetalleIncidencia />} />
               {/* Gestión de casos agrupadores */}
               <Route path="casos" element={<Casos />} />
-              {/* Áreas municipales */}
-              <Route path="areas" element={<Areas />} />
-              {/* Gestión de categorías */}
-              <Route path="categorias" element={<Categorias />} />
-              {/* Gestión de ubicaciones */}
-              <Route path="ubicaciones" element={<Ubicaciones />} />
-              {/* Gestión de usuarios */}
-              <Route path="usuarios" element={<Usuarios />} />
+              {/* Admin y responsable_area */}
+            <Route path="areas" element={
+            <ProtectedRoute roles={['administrador', 'responsable_area']}>
+              <Areas />
+              </ProtectedRoute>
+              } />
+              {/* Solo admin */}
+             <Route path="categorias" element={
+             <ProtectedRoute roles={['administrador']}>
+            <Categorias />
+            </ProtectedRoute>
+            } />
+            <Route path="ubicaciones" element={
+            <ProtectedRoute roles={['administrador']}>
+           <Ubicaciones />
+          </ProtectedRoute>
+          } />
+           <Route path="usuarios" element={
+          <ProtectedRoute roles={['administrador']}>
+          <Usuarios />
+          </ProtectedRoute>
+          } />
             </Route>
           </Routes>
         </BrowserRouter>

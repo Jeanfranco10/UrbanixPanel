@@ -24,6 +24,7 @@
  */
 
 import { X } from 'lucide-react'
+import { createPortal } from 'react-dom'
 
 /**
  * @param {object} props
@@ -37,7 +38,7 @@ export default function Modal({ isOpen, onClose, title, children, footer }) {
   // No renderizar nada si el modal no está abierto
   if (!isOpen) return null
 
-  return (
+  return createPortal(
     // Overlay oscuro con blur — se cierra al hacer clic
     <div className="modal-overlay" onClick={onClose}>
       {/* 
@@ -70,6 +71,7 @@ export default function Modal({ isOpen, onClose, title, children, footer }) {
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

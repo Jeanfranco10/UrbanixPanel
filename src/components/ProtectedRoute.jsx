@@ -19,8 +19,8 @@ import { useAuth } from '../context/AuthContext'
  * @param {object} props
  * @param {React.ReactNode} props.children - El contenido protegido
  */
-export default function ProtectedRoute({ children }) {
-  const { isAuthenticated, loading } = useAuth()
+export default function ProtectedRoute({ children ,roles}) {
+  const { isAuthenticated, loading, user } = useAuth()
 
   // Mientras se verifica la sesión guardada, mostrar spinner
   // Esto evita un "flash" donde se ve el login por un instante
@@ -42,6 +42,11 @@ export default function ProtectedRoute({ children }) {
   // 'replace' evita que el login quede en el historial del navegador
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
+  }
+
+  // Si se especifican roles y el usuario no tiene el rol requerido
+  if (roles && !roles.includes(user?.rol)) {
+    return <Navigate to="/" replace />
   }
 
   // Si está autenticado, renderizar el contenido protegido

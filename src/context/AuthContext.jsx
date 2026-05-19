@@ -72,6 +72,11 @@ export function AuthProvider({ children }) {
       if (response.ok) {
         // Login exitoso — el servidor retorna los datos del usuario
         const userData = await response.json()
+        // Validar rol — ciudadano no puede entrar al panel
+        const rolesPermitidos = ['administrador', 'inspector', 'responsable_area']
+        if (!rolesPermitidos.includes(userData.rol)) {
+        return { success: false, error: 'No tienes permisos para acceder al panel administrativo' }
+      }
 
         // Construir objeto de sesión con los datos del API
         const sessionData = {
