@@ -1865,7 +1865,118 @@ textarea {
   .areas-grid {
     grid-template-columns: 1fr;
   }
+
+  /* LOGIN — input de contraseña no se desborda */
+.login-input-wrapper {
+  padding: 10px 12px;
+  gap: 6px;
 }
+
+.login-eye-btn {
+  position: static;
+  flex-shrink: 0;
+}
+
+.login-card {
+  padding: 32px 24px;
+  width: 95%;
+}
+
+/* HEADER — ocultar búsqueda y nombre en móvil */
+.header-search {
+  display: none;
+}
+
+.header-profile-name,
+.header-profile-role {
+  display: none;
+}
+
+.header-right {
+  gap: 4px;
+}
+
+/* TABLA — scroll horizontal en móvil */
+.table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.data-table {
+  min-width: 600px;
+}
+
+/* PAGINACIÓN en columna */
+.table-pagination {
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+/* DETALLE — botones en columna */
+.detail-header {
+  flex-direction: column;
+}
+
+.detail-badges {
+  flex-wrap: wrap;
+}
+}
+
+@media (max-width: 480px) {
+  
+  /* Login más compacto */
+  .login-card {
+    padding: 28px 20px;
+    width: 98%;
+  }
+
+  .login-title {
+    font-size: 1.4rem;
+  }
+
+  /* Header más compacto */
+  .header {
+    padding: 0 12px;
+  }
+
+  .header-greeting {
+    font-size: var(--font-size-base);
+  }
+
+  .header-subtitle {
+    display: none;
+  }
+
+  /* Página con menos padding */
+  .page-content {
+    padding: 16px 12px;
+  }
+
+  /* Tabla scroll */
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .data-table {
+    min-width: 560px;
+  }
+
+  /* Métricas en una columna */
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Botones más pequeños */
+  .btn-primary,
+  .btn-secondary {
+    padding: 8px 14px;
+    font-size: var(--font-size-sm);
+  }
+}
+
+
 
 /* Pantalla extra grande */
 @media (min-width: 1400px) {
